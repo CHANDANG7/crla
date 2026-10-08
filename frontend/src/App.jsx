@@ -3,6 +3,8 @@ import './index.css'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useStore } from './store'
 import DashboardPage from './components/DashboardPage'
+import api from './api'
+
 
 function App() {
   const { page, setPage, wsConnected } = useStore()
