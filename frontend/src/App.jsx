@@ -262,14 +262,138 @@ function RLPage() {
 }
 
 function KnowledgePage() {
+  const [stats, setStats] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    api.getKnowledgeStats()
+      .then(setStats)
+      .catch(err => console.error('Failed to load knowledge stats:', err))
+  }, [])
+
+  const handleSearch = async (e) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+    setLoading(true)
+    try {
+      const results = await api.searchKnowledge(searchQuery)
+      setSearchResults(results)
+    } catch (err) {
+      console.error('Search failed:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="fade-in">
-      <ComingSoonCard
-        title="TA Knowledge Base"
-        description="Upload your TA books (PDFs) using the backend script: python scripts/ingest_books.py --path /books. Then query the knowledge base here."
-      />
+    <div className="fade-in" style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <h2 style={{ marginBottom: '1.5rem', color: '#fff', fontSize: '1.5rem', fontWeight: 600 }}>
+        📚 Technical Analysis Knowledge Base (RAG)
+      </h2>
+
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <div style={{ background: '#121826', padding: '1.25rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+          <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Indexed Chunks</div>
+          <div style={{ color: '#38bdf8', fontSize: '1.75rem', fontWeight: 700 }}>
+            {stats ? stats.total_chunks?.toLocaleString() : 'Loading...'}
+          </div>
+        </div>
+        <div style={{ background: '#121826', padding: '1.25rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+          <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Books Indexed</div>
+          <div style={{ color: '#4ade80', fontSize: '1.75rem', fontWeight: 700 }}>
+            {stats ? stats.total_books : 0} Books
+          </div>
+        </div>
+        <div style={{ background: '#121826', padding: '1.25rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+          <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.25rem' }}>TA Concepts</div>
+          <div style={{ color: '#f43f5e', fontSize: '1.75rem', fontWeight: 700 }}>
+            {stats ? stats.total_concepts : 0} Concepts
+          </div>
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem' }}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search TA concepts, patterns, rules (e.g. breakout, trend, support)..."
+          style={{
+            flex: 1,
+            background: '#0f172a',
+            border: '1px solid #334155',
+            borderRadius: '8px',
+            padding: '0.85rem 1.25rem',
+            color: '#fff',
+            fontSize: '1rem',
+            outline: 'none',
+          }}
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            background: '#2563eb',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '0 1.5rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontSize: '1rem',
+            transition: 'all 0.2s',
+          }}
+        >
+          {loading ? 'Searching...' : 'Search Book KB'}
+        </button>
+      </form>
+
+      {/* Search Results */}
+      {searchResults.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {searchResults.map((item) => (
+            <div key={item.id} style={{ background: '#121826', padding: '1.25rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span style={{ background: '#1e293b', color: '#38bdf8', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600 }}>
+                  {item.concept || 'General TA'}
+                </span>
+                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                  {item.source_book ? `${item.source_book} (Pg ${item.source_page || 'N/A'})` : 'TA Library'}
+                </span>
+              </div>
+              <p style={{ color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '0.5rem' }}>
+                {item.content}
+              </p>
+              {item.confirmation && (
+                <div style={{ marginTop: '0.5rem', color: '#4ade80', fontSize: '0.85rem' }}>
+                  <strong>Confirmation:</strong> {item.confirmation}
+                </div>
+              )}
+              {item.invalidation && (
+                <div style={{ marginTop: '0.25rem', color: '#f43f5e', fontSize: '0.85rem' }}>
+                  <strong>Invalidation:</strong> {item.invalidation}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ background: '#0f172a', padding: '2.5rem', borderRadius: '10px', textAlign: 'center', border: '1px dashed #334155' }}>
+          <div style={{ color: '#94a3b8', fontSize: '1rem', marginBottom: '0.5rem' }}>
+            {searchQuery ? 'No matching TA concepts found' : 'Enter a query above to search your indexed Technical Analysis books'}
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.85rem' }}>
+            Indexed Books: {stats?.books_indexed?.join(', ') || 'Market Wizards, Price Action Trends, Technical Analysis, etc.'}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
 
 export default App
