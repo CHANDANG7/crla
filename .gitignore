@@ -1,0 +1,49 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+frontend/.env
+
+# Python Virtual Environments & Packages
+venv/
+env/
+ENV/
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Node.js & Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# Models, Checkpoints & Heavy Binary Data
+*.pt
+*.pth
+*.onnx
+*.safetensors
+backend/models/policies/
+backend/data/
+
+# Heavy PDF Books & Media
+books/*.pdf
+books/*.epub
+books/*.mobi
+
+# Database & Logs
+*.db
+*.sqlite3
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

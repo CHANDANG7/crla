@@ -1,0 +1,99 @@
+services:
+  # ── TimescaleDB (PostgreSQL + time-series extension) ──────────────────────────
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: zecro_timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zecro
+      POSTGRES_PASSWORD: zecro_pass
+      POSTGRES_DB: zecro_rl
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./backend/migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zecro -d zecro_rl"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (task queue + caching) ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: zecro_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zecro_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./books:/books
+      - ./backend/models:/app/models
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://zecro:zecro_pass@timescaledb:5432/zecro_rl
+      DATABASE_SYNC_URL: postgresql://zecro:zecro_pass@timescaledb:5432/zecro_rl
+      REDIS_URL: redis://redis:6379/0
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── Prometheus ─────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: zecro_prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+
+  # ── Grafana ────────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: zecro_grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: zecro_grafana_pass
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    depends_on:
+      - prometheus
+
+volumes:
+  timescaledb_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
