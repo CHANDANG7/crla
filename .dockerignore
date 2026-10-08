@@ -1,0 +1,9 @@
+venv/
+.venv/
+node_modules/
+backend/venv/
+backend/__pycache__/
+books/*.pdf
+books/*.epub
+.git
+.gitignore
