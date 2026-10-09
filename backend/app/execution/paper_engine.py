@@ -11,7 +11,9 @@ from typing import Any, Dict, List, Optional
 import uuid
 
 import numpy as np
+import pandas as pd
 import structlog
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -176,8 +178,12 @@ class PaperEngine:
             return  # Need minimum historical context
 
         # ── 2. Compute TA Features ─────────────────────────────────────────────
-        state_1h = feature_engine.compute_state(symbol, "1h", buf_1h)
-        state_15m = feature_engine.compute_state(symbol, "15m", buf_15m)
+        df_1h = pd.DataFrame(buf_1h)
+        df_15m = pd.DataFrame(buf_15m)
+
+        state_1h = feature_engine.compute_state(df_1h, symbol=symbol)
+        state_15m = feature_engine.compute_state(df_15m, symbol=symbol)
+
 
         # ── 3. Strategy: 1H Bias & 15M Entry Setup ─────────────────────────────
         bias_res = await bias_engine.compute_bias(state_1h, use_llm=False)
