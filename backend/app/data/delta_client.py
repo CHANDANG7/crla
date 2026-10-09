@@ -142,14 +142,21 @@ class DeltaExchangeClient:
         if resolution_code is None:
             raise ValueError(f"Invalid resolution: {resolution}. Valid: {list(DELTA_RESOLUTIONS.keys())}")
 
+        # Delta Exchange v2 history/candles accepts resolution strings ("1m", "5m", "15m", "1h", "1d")
         params = {
             "symbol": symbol,
-            "resolution": resolution_code,
+            "resolution": str(resolution),
             "from": start,
             "to": end,
         }
 
-        data = await self._get("/v2/history/candles", params=params)
+        try:
+            data = await self._get("/v2/history/candles", params=params)
+        except Exception:
+            # Fallback to resolution code integer if needed
+            params["resolution"] = resolution_code
+            data = await self._get("/v2/history/candles", params=params)
+
         candles = data.get("result", {})
 
         if not candles or not candles.get("t"):
