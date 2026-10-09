@@ -142,46 +142,57 @@ class DeltaExchangeClient:
         if resolution_code is None:
             raise ValueError(f"Invalid resolution: {resolution}. Valid: {list(DELTA_RESOLUTIONS.keys())}")
 
-        # Delta Exchange v2 history/candles accepts resolution strings ("1m", "5m", "15m", "1h", "1d")
+        # Delta Exchange API v2 /v2/history/candles requires 'start' and 'end' query parameters
         params = {
             "symbol": symbol,
             "resolution": str(resolution),
-            "from": start,
-            "to": end,
+            "start": start,
+            "end": end,
         }
 
-        try:
-            data = await self._get("/v2/history/candles", params=params)
-        except Exception:
-            # Fallback to resolution code integer if needed
-            params["resolution"] = resolution_code
-            data = await self._get("/v2/history/candles", params=params)
+        data = await self._get("/v2/history/candles", params=params)
+        candles = data.get("result", [])
 
-        candles = data.get("result", {})
-
-        if not candles or not candles.get("t"):
+        if not candles:
             return []
 
-        # Delta returns arrays: t(time), o(open), h(high), l(low), c(close), v(volume)
-        times = candles["t"]
-        opens = candles["o"]
-        highs = candles["h"]
-        lows = candles["l"]
-        closes = candles["c"]
-        volumes = candles.get("v", [0] * len(times))
+        # Case A: Result is a list of candle objects [{"time":..., "open":...}]
+        if isinstance(candles, list):
+            result = []
+            for c in candles:
+                result.append({
+                    "start_time": c.get("time") or c.get("t") or c.get("start_time"),
+                    "open": float(c.get("open") or c.get("o", 0)),
+                    "high": float(c.get("high") or c.get("h", 0)),
+                    "low": float(c.get("low") or c.get("l", 0)),
+                    "close": float(c.get("close") or c.get("c", 0)),
+                    "volume": float(c.get("volume") or c.get("v", 0)),
+                })
+            return result
 
-        result = []
-        for i in range(len(times)):
-            result.append({
-                "timestamp": datetime.fromtimestamp(times[i], tz=timezone.utc),
-                "open": float(opens[i]),
-                "high": float(highs[i]),
-                "low": float(lows[i]),
-                "close": float(closes[i]),
-                "volume": float(volumes[i]) if volumes else 0.0,
-            })
+        # Case B: Result is a dictionary of arrays {"t": [...], "o": [...], ...}
+        if isinstance(candles, dict) and "t" in candles:
+            times = candles["t"]
+            opens = candles.get("o", [])
+            highs = candles.get("h", [])
+            lows = candles.get("l", [])
+            closes = candles.get("c", [])
+            volumes = candles.get("v", [0] * len(times))
 
-        return result
+            result = []
+            for i in range(len(times)):
+                result.append({
+                    "start_time": times[i],
+                    "open": float(opens[i]) if i < len(opens) else 0.0,
+                    "high": float(highs[i]) if i < len(highs) else 0.0,
+                    "low": float(lows[i]) if i < len(lows) else 0.0,
+                    "close": float(closes[i]) if i < len(closes) else 0.0,
+                    "volume": float(volumes[i]) if i < len(volumes) else 0.0,
+                })
+            return result
+
+        return []
+
 
     async def get_ohlc_paginated(
         self,
