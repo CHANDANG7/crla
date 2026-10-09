@@ -81,38 +81,42 @@ class PaperEngine:
             try:
                 async with DeltaExchangeClient() as client:
                     for symbol in symbols:
-                        end_time = int(datetime.now(timezone.utc).timestamp())
-                        start_1h = end_time - (100 * 3600)
-                        start_15m = end_time - (100 * 900)
+                        try:
+                            end_time = int(datetime.now(timezone.utc).timestamp())
+                            start_1h = end_time - (100 * 3600)
+                            start_15m = end_time - (100 * 900)
 
-                        candles_1h = await client.get_ohlc(symbol, "1h", start_1h, end_time)
-                        candles_15m = await client.get_ohlc(symbol, "15m", start_15m, end_time)
+                            candles_1h = await client.get_ohlc(symbol, "1h", start_1h, end_time)
+                            candles_15m = await client.get_ohlc(symbol, "15m", start_15m, end_time)
 
-                        if candles_1h and candles_15m:
-                            for c in candles_1h[-60:]:
-                                candle_dict = {
-                                    "timestamp": datetime.fromtimestamp(c["start_time"], tz=timezone.utc) if isinstance(c.get("start_time"), (int, float)) else datetime.now(timezone.utc),
-                                    "open": float(c["open"]),
-                                    "high": float(c["high"]),
-                                    "low": float(c["low"]),
-                                    "close": float(c["close"]),
-                                    "volume": float(c.get("volume", 0)),
-                                }
-                                await self.process_candle(symbol, "1h", candle_dict)
+                            if candles_1h and candles_15m:
+                                for c in candles_1h[-60:]:
+                                    candle_dict = {
+                                        "timestamp": datetime.fromtimestamp(c["start_time"], tz=timezone.utc) if isinstance(c.get("start_time"), (int, float)) else datetime.now(timezone.utc),
+                                        "open": float(c["open"]),
+                                        "high": float(c["high"]),
+                                        "low": float(c["low"]),
+                                        "close": float(c["close"]),
+                                        "volume": float(c.get("volume", 0)),
+                                    }
+                                    await self.process_candle(symbol, "1h", candle_dict)
 
-                            for c in candles_15m[-10:]:
-                                candle_dict = {
-                                    "timestamp": datetime.fromtimestamp(c["start_time"], tz=timezone.utc) if isinstance(c.get("start_time"), (int, float)) else datetime.now(timezone.utc),
-                                    "open": float(c["open"]),
-                                    "high": float(c["high"]),
-                                    "low": float(c["low"]),
-                                    "close": float(c["close"]),
-                                    "volume": float(c.get("volume", 0)),
-                                }
-                                await self.process_candle(symbol, "15m", candle_dict)
+                                for c in candles_15m[-10:]:
+                                    candle_dict = {
+                                        "timestamp": datetime.fromtimestamp(c["start_time"], tz=timezone.utc) if isinstance(c.get("start_time"), (int, float)) else datetime.now(timezone.utc),
+                                        "open": float(c["open"]),
+                                        "high": float(c["high"]),
+                                        "low": float(c["low"]),
+                                        "close": float(c["close"]),
+                                        "volume": float(c.get("volume", 0)),
+                                    }
+                                    await self.process_candle(symbol, "15m", candle_dict)
+                        except Exception as sym_e:
+                            logger.debug("Symbol processing skip", symbol=symbol, error=str(sym_e))
 
             except Exception as e:
                 logger.error("Error in autonomous trading loop tick", error=str(e))
+
 
             # Poll market every 60 seconds
             await asyncio.sleep(60)
