@@ -80,14 +80,34 @@ class PaperEngine:
         while self.is_running:
             try:
                 async with DeltaExchangeClient() as client:
+                    # Fetch active perpetual products from Delta Exchange
+                    valid_products = set()
+                    try:
+                        prods = await client.get_products()
+                        valid_products = {p.get("symbol") for p in prods if p.get("symbol")}
+                    except Exception as pe:
+                        logger.warning("Could not fetch active Delta Exchange products list", error=str(pe))
+
                     for symbol in symbols:
                         try:
+                            # Auto-resolve target symbol name on Delta Exchange
+                            target_symbol = symbol
+                            if valid_products:
+                                if symbol in valid_products:
+                                    target_symbol = symbol
+                                elif symbol.endswith("USD") and f"{symbol}T" in valid_products:
+                                    target_symbol = f"{symbol}T"
+                                elif symbol.endswith("USDT") and symbol[:-1] in valid_products:
+                                    target_symbol = symbol[:-1]
+                                elif symbol not in valid_products:
+                                    continue  # Skip if symbol does not exist on Delta Exchange
+
                             end_time = int(datetime.now(timezone.utc).timestamp())
                             start_1h = end_time - (100 * 3600)
                             start_15m = end_time - (100 * 900)
 
-                            candles_1h = await client.get_ohlc(symbol, "1h", start_1h, end_time)
-                            candles_15m = await client.get_ohlc(symbol, "15m", start_15m, end_time)
+                            candles_1h = await client.get_ohlc(target_symbol, "1h", start_1h, end_time)
+                            candles_15m = await client.get_ohlc(target_symbol, "15m", start_15m, end_time)
 
                             if candles_1h and candles_15m:
                                 for c in candles_1h[-60:]:
@@ -99,7 +119,7 @@ class PaperEngine:
                                         "close": float(c["close"]),
                                         "volume": float(c.get("volume", 0)),
                                     }
-                                    await self.process_candle(symbol, "1h", candle_dict)
+                                    await self.process_candle(target_symbol, "1h", candle_dict)
 
                                 for c in candles_15m[-10:]:
                                     candle_dict = {
@@ -110,9 +130,10 @@ class PaperEngine:
                                         "close": float(c["close"]),
                                         "volume": float(c.get("volume", 0)),
                                     }
-                                    await self.process_candle(symbol, "15m", candle_dict)
+                                    await self.process_candle(target_symbol, "15m", candle_dict)
                         except Exception as sym_e:
                             logger.debug("Symbol processing skip", symbol=symbol, error=str(sym_e))
+
 
             except Exception as e:
                 logger.error("Error in autonomous trading loop tick", error=str(e))
