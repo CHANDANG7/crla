@@ -52,6 +52,71 @@ class PaperEngine:
         self.active_policy_version = policy_version
         logger.info("Paper engine attached RL policy", version=policy_version)
 
+    async def start_autonomous_loop(self, symbols: Optional[List[str]] = None):
+        """
+        24/7 Autonomous Market Monitoring & Execution Loop.
+        Periodically fetches live candles from Delta Exchange, runs TA feature extraction,
+        RL policy inference, risk checks, and executes trades automatically.
+        """
+        symbols = symbols or ["BTCUSD", "ETHUSD", "SOLUSD"]
+        self.is_running = True
+        logger.info("⚡ Started 24/7 Autonomous Market Monitor & Trading Loop", symbols=symbols)
+
+        from app.data.delta_client import DeltaExchangeClient
+        from app.rl.policy_manager import policy_manager
+
+        # Try loading active policy from DB or fallback
+        try:
+            loaded = await policy_manager.load_active_policy()
+            if loaded:
+                self.set_agent(loaded[0], loaded[1])
+            else:
+                self.set_agent(PPOAgent(), "v001_initial")
+        except Exception as e:
+            logger.warning("Could not auto-load active policy, using default PPO agent", error=str(e))
+            self.set_agent(PPOAgent(), "v001_initial")
+
+        while self.is_running:
+            try:
+                async with DeltaExchangeClient() as client:
+                    for symbol in symbols:
+                        end_time = int(datetime.now(timezone.utc).timestamp())
+                        start_1h = end_time - (100 * 3600)
+                        start_15m = end_time - (100 * 900)
+
+                        candles_1h = await client.get_ohlc(symbol, "1h", start_1h, end_time)
+                        candles_15m = await client.get_ohlc(symbol, "15m", start_15m, end_time)
+
+                        if candles_1h and candles_15m:
+                            for c in candles_1h[-60:]:
+                                candle_dict = {
+                                    "timestamp": datetime.fromtimestamp(c["start_time"], tz=timezone.utc) if isinstance(c.get("start_time"), (int, float)) else datetime.now(timezone.utc),
+                                    "open": float(c["open"]),
+                                    "high": float(c["high"]),
+                                    "low": float(c["low"]),
+                                    "close": float(c["close"]),
+                                    "volume": float(c.get("volume", 0)),
+                                }
+                                await self.process_candle(symbol, "1h", candle_dict)
+
+                            for c in candles_15m[-10:]:
+                                candle_dict = {
+                                    "timestamp": datetime.fromtimestamp(c["start_time"], tz=timezone.utc) if isinstance(c.get("start_time"), (int, float)) else datetime.now(timezone.utc),
+                                    "open": float(c["open"]),
+                                    "high": float(c["high"]),
+                                    "low": float(c["low"]),
+                                    "close": float(c["close"]),
+                                    "volume": float(c.get("volume", 0)),
+                                }
+                                await self.process_candle(symbol, "15m", candle_dict)
+
+            except Exception as e:
+                logger.error("Error in autonomous trading loop tick", error=str(e))
+
+            # Poll market every 60 seconds
+            await asyncio.sleep(60)
+
+
     async def process_candle(
         self,
         symbol: str,

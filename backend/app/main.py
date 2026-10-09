@@ -48,7 +48,14 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
 
+    # Launch 24/7 Autonomous Market Monitoring & Execution Loop
+    import asyncio
+    from app.execution.paper_engine import paper_engine
+    asyncio.create_task(paper_engine.start_autonomous_loop())
+    logger.info("⚡ Autonomous 24/7 market monitoring task launched")
+
     yield
+
 
     # Shutdown
     logger.info("Shutting down...")
