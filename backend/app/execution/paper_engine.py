@@ -58,8 +58,9 @@ class PaperEngine:
         Periodically fetches live candles from Delta Exchange, runs TA feature extraction,
         RL policy inference, risk checks, and executes trades automatically.
         """
-        symbols = symbols or ["BTCUSD", "ETHUSD", "SOLUSD"]
+        symbols = symbols or settings.symbols
         self.is_running = True
+
         logger.info("⚡ Started 24/7 Autonomous Market Monitor & Trading Loop", symbols=symbols)
 
         from app.data.delta_client import DeltaExchangeClient

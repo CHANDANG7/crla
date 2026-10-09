@@ -85,9 +85,19 @@ class Settings(BaseSettings):
 
     # ── Assets ─────────────────────────────────────────────────────────────────
     symbols: List[str] = [
-        "BTCUSD", "ETHUSD", "SOLUSD", "BNBUSD", "XRPUSD", "AVAXUSD", "LINKUSD"
+        "BTCUSD", "ETHUSD", "SOLUSD", "BNBUSD", "XRPUSD", "DOGEUSD", "ADAUSD", "AVAXUSD",
+        "LINKUSD", "DOTUSD", "SUIUSD", "APTUSD", "NEARUSD", "POLUSD", "MATICUSD", "ARBUSD",
+        "OPUSD", "TIAUSD", "SEIUSD", "ATOMUSD", "FTMUSD", "KASUSD", "TRXUSD", "LTCUSD",
+        "BCHUSD", "ICPUSD", "UNIUSD", "AAVEUSD", "INJUSD", "PENDLEUSD", "RUNEUSD", "LDOUSD",
+        "MKRUSD", "RENDERUSD", "FETUSD", "TAOUSD", "GRTUSD", "WLDUSD", "FILUSD", "PEPEUSD",
+        "WIFUSD", "SHIBUSD", "BONKUSD", "FLOKIUSD", "POPCATUSD", "PAXGUSD", "XAUTUSD", "SLVONUSD",
+        "SNDKBUSD", "TSLAXUSD", "SOXLBUSD", "GOOGLXUSD", "SPCXXUSD", "SPYXUSD", "METAXUSD", "MSTRBUSD",
+        "NBISBUSD", "NVDAXUSD", "QQQXUSD", "MRVLBUSD", "AAPLXUSD", "MUBUSD", "DRAMBUSD", "AMZNXUSD",
+        "CBRSBUSD", "LITEBUSD", "WDCBUSD", "SKHYBUSD", "PLTRBUSD", "RKLBBUSD", "INTCBUSD", "CRCLXUSD",
+        "COINXUSD", "ARMBUSD", "EWYBUSD", "BABABUSD", "HOODBUSD", "AMDBUSD", "TSMBUSD", "AVAXUSDT", "INJUSDT"
     ]
     default_symbol: str = "BTCUSD"
+
     timeframe_analysis: str = "1h"
     timeframe_entry: str = "15m"
     timeframes_all: List[str] = ["1m", "5m", "15m", "1h", "4h", "1d"]
